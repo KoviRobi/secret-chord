@@ -1,0 +1,355 @@
+% vim: set tw=80 filetype=noweb :
+\documentclass[a4paper]{article}
+\usepackage{geometry}
+\usepackage{noweb}
+
+\makeatletter
+\let\obeyedspace\@xobeysp
+\makeatother
+
+\title{Interactive Bootstraps}
+\author{Robert Kovacsics}
+
+\begin{document}
+\maketitle
+@
+
+\begin{description}
+\item [Bootstrapping] verb
+  \begin{enumerate}
+    \item [general] An impossible task, comes from the saying ``to pull oneself
+    up by one's bootstraps''.
+
+    \item [computing] A compiler for a language \emph{A}, itself written in
+    \emph{A} is called a self-hosting compiler. Getting the first such compiler
+    running uses a stripped down version of language \emph{A}, written in a
+    different language.
+  \end{enumerate}
+\end{description}
+
+This document aims to bootstrap a small language, using the most interactive
+and educational way. It is intended as a playground for computing, going
+through several different language paradigms, and allowing you to play with
+every one of them.
+
+We must however start somewhere, which will require a small leap of faith, so
+please bear with me. We will write the first stage in a language called C,
+which we will briefly explain, alongside what we are doing. But C is not
+interactive, for which I will try to make up by having small examples which you
+can experiment with.
+
+\section{Undramatic conventions}
+
+First, some conventions, let's create a file with a comment in it -- a comment
+is some text to help the programmer, which has no effect on the code.
+
+<<main.c>>=
+// Two slashes begin a comment until the end of the line
+@
+
+This file, \verb|main.c|, will be the entry to our program. Calling it
+\verb|main.c| is a common convention but it is not necessary. For now it
+contains a single line, beginning with two slashes. The part above it is called
+a chunk header. If we begin a chunk with the same name, we append to it, like
+so:
+
+<<main.c>>=
+// Another comment
+@
+
+Now our file contains two lines, and we have covered two conventions, on to the
+next one, another chunk:
+
+<<main.c>>=
+<<A non-file chunk>>
+@
+
+This chunk contains another chunk, which we can define before or after, like
+so:
+
+<<A non-file chunk>>=
+/* A different type of comment closed by */
+@
+
+And this is not a file chunk as we are including it in another chunk. By
+convention we name all our files using short lower case names, using underscores
+instead of spaces, and containing a file extension such as \verb|.c|, so it
+should be easy to tell.
+
+\section{C primer}
+
+<<trivial.c>>=
+int main(int argc, char *argv[]) {
+  return 0;
+}
+@
+
+<<hello.c>>=
+#include <stdio.h>
+
+int main(int argc, char *argv[]) {
+  printf("Hello, world!\n");
+}
+@
+
+<<cmdline.c>>=
+#include <stdio.h>
+
+int main(int argc, char *argv[]) {
+  for (int i = 0; i < argc; i++) {
+    printf("Arg[%d]:\t%s\n", i, argv[i]);
+  }
+}
+@
+
+Machines at their core are just manipulating numbers, and likewise C is also
+about manipulating numbers. But those numbers can represent almost
+anything\footnote{Only things which can be represented in some way by finite
+numbers.} For example, let's consider the typical introductory program, which
+prints ``Hello, world!'' onto the screen: the sentence can be encoded by
+assigning numerical values to each letter in the alphabet, if you have come
+across ciphers in school then this might be familiar. Then when we print a code
+for a character, the display can display the corresponding letter, as long as
+they both agree. One such convention is called the American Standard Code for
+Information Interchange (ASCII)\footnote{There is an encoding called Unicode
+which supports more writing systems. It can get complicated though, for example
+see the Greek question mark, so we will stick with ASCII.}
+
+Fortunately C supports characters in the ASCII encoding, which makes our life
+simpler, so here is the introductory program:
+
+<<hello.c>>=
+#include <stdio.h>
+
+int main(int argc, char *argv[]) {
+  printf("Hello, world!\n");
+}
+@
+
+If you save that file, compile and run it\footnote{On Linux, you need to install
+GCC or Clang, on macOS you want Clang, and on Windows you want MSYS2. Then you
+can run \texttt{cc hello.c -o hello; ./hello}. I would recommend looking for a
+tutorial for your system, as there are far too many system-specific things
+here.} then you should get ``Hello, world!'' out on the screen, and indicates
+that your tooling should be able to get you through the rest of the book.
+
+As for the meaning of those lines, \verb|#include| tells the compiler to search
+for \verb|stdio.h| in the system paths, and paste its contents -- this contains
+the interface for printing to the screen for example by the \verb|printf|
+command. The line \verb|int main(int argc, char *argv) {| starts the definition
+of the function called \verb|main|, and the closing brace \verb|}| ends it. And
+\verb|printf("Hello, world!\n");| calls the \verb|printf| function.
+
+A function is something which takes some number of arguments, does some
+processing, and may return an argument. You have already come across functions
+in mathematics, such as `$\sin(x)$', or even simpler `$+$' the addition
+function. In programming terms the addition function takes two numbers
+(arguments) and returns their sum.
+
+In mathematics, functions just have a return value, and we usually don't
+consider the time or energy it takes to execute a function, but in programming
+functions can also do other tasks, such as print text to the screen, and often
+their efficiency is important.
+
+We will program a function which performs a very simple compression on numbers,
+for which we need to discuss how a computer stores numbers, and a concept called
+pointers.
+
+\subsection{Storing numbers}
+
+\subsection{Pointers}
+
+<<leb128.h>>=
+#pragma once
+
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct {
+  uint64_t value;
+  uint8_t size;
+} value_size;
+
+uint8_t uleb128_bytes(uint64_t value);
+
+uint8_t uleb128_encode(uint64_t value, uint8_t *data);
+
+value_size uleb128_decode(uint8_t *data);
+
+uint8_t leb128_bytes(int64_t value);
+
+uint8_t leb128_encode(int64_t value, uint8_t *data);
+
+value_size leb128_decode(uint8_t *data);
+@
+
+<<leb128.c>>=
+uint8_t uleb128_bytes(uint64_t value) {
+  int i = 0;
+  for (i = 0; i < 10; i++) {
+    if (value < 128) {
+      i++;
+      break;
+    } else {
+      value = value >> 7;
+    }
+  }
+  return i;
+}
+@
+
+<<leb128.c>>=
+uint8_t uleb128_encode(uint64_t value, uint8_t *data) {
+  int i = 0;
+  for (i = 0; i < 10; i++) {
+    if (value < 128) {
+      data[i] = value;
+      i++;
+      break;
+    } else {
+      data[i] = (value & 127) | 128;
+      value = value >> 7;
+    }
+  }
+  return i;
+}
+@
+
+\section{First interpreter}
+
+<<direct.c>>=
+#include <stdio.h>
+
+#define ASIZE(x) (sizeof((x)) / sizeof((x)[0]))
+
+typedef void instruction(void);
+
+int stack[100];
+unsigned stack_p;
+
+instruction put_0;
+instruction increment;
+
+instruction* prog[] = {
+  &put_0,
+  &increment
+};
+int pc = 0;
+
+void push(int value) { stack[stack_p++] = value; }
+int pop(void) { return stack[--stack_p]; }
+
+void put_0(void) {
+  push(0);
+}
+
+void increment(void) {
+  push(pop() + 1);
+}
+
+int main(int argc, char *argv[]) {
+  for (pc = 0; pc < ASIZE(prog); pc++) {
+    prog[pc]();
+  }
+
+  // Print stack after exit
+  printf("<%u>", stack_p);
+  for (int i = 0; i < stack_p; i++)
+    printf(" %d", stack[i]);
+
+}
+@
+
+<<direct-lit.c>>=
+#include <stdio.h>
+#include <stdint.h>
+
+#define ASIZE(x) (sizeof((x)) / sizeof((x)[0]))
+
+typedef void instruction(void);
+
+int stack[100];
+unsigned stack_p;
+
+void push(int value) { stack[stack_p++] = value; }
+int pop(void) { return stack[--stack_p]; }
+
+instruction lit;
+
+instruction* prog[] = {
+  &lit,
+  (instruction *)2,
+};
+int pc = 0;
+
+void lit(void) {
+  push((int)(intptr_t)prog[++pc]);
+}
+
+int main(int argc, char *argv[]) {
+  for (pc = 0; pc < ASIZE(prog); pc++) {
+    prog[pc]();
+  }
+
+  // Print stack after exit
+  printf("<%u>", stack_p);
+  for (int i = 0; i < stack_p; i++)
+    printf(" %d", stack[i]);
+
+}
+@
+
+To be able to exit\footnote{There is a function called \texttt{exit} which we
+could use in this instance, but it closes the program. Supposing we were making
+a game engine, we wouldn't want the whole game to close when the script
+finishes}, we need to change things slightly.
+
+<<direct-next.c>>=
+#include <stdio.h>
+#include <stdint.h>
+
+#define ASIZE(x) (sizeof((x)) / sizeof((x)[0]))
+
+typedef void instruction(void **pc);
+
+int stack[100];
+unsigned stack_p;
+
+void push(int value) { stack[stack_p++] = value; }
+int pop(void) { return stack[--stack_p]; }
+
+instruction lit;
+instruction stop;
+
+instruction* prog[] = {
+  &lit,
+  (instruction *)3,
+  &stop
+};
+
+void next(void **pc) {
+  instruction *next_instr = *pc;
+  next_instr(pc + 1);
+}
+
+void lit(void **pc) {
+  push(*(int *)pc++);
+  next(pc);
+}
+
+void stop(void **pc) {}
+
+int main(int argc, char *argv[]) {
+  int start = 0;
+  prog[start]((void**)&prog[start + 1]);
+
+  // Print stack after exit
+  printf("<%u>", stack_p);
+  for (int i = 0; i < stack_p; i++)
+    printf(" %d", stack[i]);
+
+}
+@
+
+@
+\end{document}
