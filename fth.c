@@ -23,16 +23,6 @@ typedef union {
 } dict_flags;
 _Static_assert(sizeof(dict_flags) == 1, "Size of flags != one byte");
 
-typedef struct {
-  cell len;
-  cell data_p;
-} counted_string;
-
-typedef struct {
-  cell value;
-  bool success;
-} flagged_cell;
-
 cell stack[512 + 256];
 cell rstack[256];
 cell stack_p;
@@ -370,7 +360,7 @@ static bool is_separator(char n) {
   return n == ' ' || n == '\t' || n == '\r' || n == '\n';
 }
 
-static bool refill_if_needed(void) {
+static void refill_if_needed(uint8_t *instr_p, uint8_t *instr_code) {
   if (input_index >= input_size) {
     char *input = read_line(input_source, "> ");
     if (input != NULL)
@@ -379,28 +369,26 @@ static bool refill_if_needed(void) {
       input_size = 0;
     input_buffer = (cell)(input - (char *)data);
     input_index = 0;
-
-    return input != NULL;
+    push(BOOL(input != NULL));
+    next(instr_p);
+  } else {
+    push(FORTH_TRUE);
+    next(instr_p);
   }
-  return true;
 }
 
-static counted_string word(void) {
-  counted_string ret;
-
+static void word(uint8_t *instr_p, uint8_t *instr_code) {
   while (input_index < input_size &&
          is_separator(data[input_buffer + input_index]))
     input_index++;
-
-  ret.data_p = input_buffer + input_index;
-  ret.len = 0;
-
+  cell start = input_index;
   while (input_index < input_size &&
          !is_separator(data[input_buffer + input_index])) {
-    ret.len++;
     input_index++;
   }
-  return ret;
+  push((cell)(input_buffer + start));
+  push(input_index - start);
+  next(instr_p);
 }
 
 static cell to_interpreter(cell entry) {
@@ -415,8 +403,10 @@ static cell to_interpreter(cell entry) {
   return entry;
 }
 
-static void execute(cell interpreter_offset, uint8_t *instr_p) {
-  instruction **interpreter = (instruction **)&data[interpreter_offset];
+static void execute(uint8_t *instr_p, uint8_t *old_instr_code) {
+  cell execution_token = pop();
+  instruction **interpreter =
+      (instruction **)&data[to_interpreter(execution_token)];
   uint8_t *instr_code = (uint8_t *)(interpreter + 1);
   (*interpreter)(instr_p, instr_code);
 }
@@ -432,46 +422,68 @@ static void find_and_compile(const char *name) {
   }
 }
 
-static void compile_comma(cell interpreter) {
-  data_p += uleb128_encode(interpreter, &data[data_p]);
+static void find(uint8_t *instr_p, uint8_t *instr_code) {
+  cell len = pop();
+  cell index = pop();
+  cell entry = find_in_dict(len, (char *)&data[index]);
+  if (entry) {
+    dict_flags flags = {.as_byte = data[entry]};
+    push(entry);
+    push(flags.immediate ? 1 : -1);
+  } else {
+    push(index);
+    push(len);
+    push(0);
+  }
+  next(instr_p);
 }
 
-static flagged_cell parse_number(counted_string token) {
-  flagged_cell ret;
+static void compile_comma(uint8_t *instr_p, uint8_t *instr_code) {
+  cell execution_token = pop();
+  data_p += uleb128_encode(to_interpreter(execution_token), &data[data_p]);
+  next(instr_p);
+}
 
-  if (token.len == 0) {
-    ret.success = false;
-    return ret;
+static void parse_number(uint8_t *instr_p, uint8_t *instr_code) {
+  cell len = pop();
+
+  if (len == 0) {
+    push(len);
+    push(0);
+    return next(instr_p);
   }
 
+  cell start = pop();
+  cell data_p = start;
+  cell end = data_p + len;
+
   bool negative = false;
-  if (token.len > 1 && data[token.data_p] == '-') {
+  if (len > 1 && data[data_p] == '-') {
     negative = true;
-    token.data_p++;
+    data_p++;
   }
 
   cell saved_base = base;
-  if (token.len > 2 && data[token.data_p] == '0') {
-    if (data[token.data_p] == 'x' || data[token.data_p] == 'X') {
+  if (len > 2 && data[data_p] == '0') {
+    if (data[data_p] == 'x' || data[data_p] == 'X') {
       base = 16;
-      token.data_p += 2;
-    } else if (data[token.data_p] == 'o') {
+      data_p += 2;
+    } else if (data[data_p] == 'o') {
       base = 8;
-      token.data_p += 2;
-    } else if (data[token.data_p] == 'b' || data[token.data_p] == 'B') {
+      data_p += 2;
+    } else if (data[data_p] == 'b' || data[data_p] == 'B') {
       base = 2;
-      token.data_p += 2;
+      data_p += 2;
     }
   }
 
-  cell end = token.data_p + token.len;
   union {
     cell u;
     scell s;
   } value = {0};
-  while (token.data_p < end) {
-    char c = data[token.data_p];
-    value.u *= 10;
+  while (data_p < end) {
+    char c = data[data_p];
+    value.u *= base;
     if ('0' <= c && c <= '9' && (c - '0') < base)
       value.u += c - '0';
     else if ('a' <= c && c <= 'z' && (c + 10 - 'a') < base)
@@ -479,10 +491,12 @@ static flagged_cell parse_number(counted_string token) {
     else if ('A' <= c && c <= 'Z' && (c + 10 - 'A') < base)
       value.u += c + 10 - 'A';
     else {
-      ret.success = false;
-      return ret;
+      push(start);
+      push(len);
+      push(0);
+      return next(instr_p);
     }
-    token.data_p++;
+    data_p++;
   }
 
   base = saved_base;
@@ -490,9 +504,9 @@ static flagged_cell parse_number(counted_string token) {
   if (negative)
     value.s = -value.s;
 
-  ret.value = value.u;
-  ret.success = true;
-  return ret;
+  push(value.u);
+  push(FORTH_TRUE);
+  return next(instr_p);
 }
 
 static void compile_number(cell value) {
@@ -505,36 +519,75 @@ static void compile_number(cell value) {
   }
 }
 
-static void interpret(uint8_t *instr_p, uint8_t *instr_code) {
-  if (!refill_if_needed())
-    return exit_and_print(instr_p, instr_code);
+static void forth_compile_number(uint8_t *instr_p, uint8_t *_instr_code) {
+  compile_number(pop());
+  next(instr_p);
+}
 
-  counted_string token = word();
+static void str_lit(uint8_t *instr_p, uint8_t *_instr_code) {
+  value_size len = uleb128_decode(instr_p);
+  instr_p += len.size;
+  push((cell)(instr_p - data));
+  push(len.value);
+  instr_p += len.value;
+  next(instr_p);
+}
 
-  cell entry = find_in_dict(token.len, (char *)&data[token.data_p]);
-
-  if (entry != 0) {
-    dict_flags flags = {.as_byte = data[entry]};
-    cell interpreter = to_interpreter(entry);
-    if (flags.immediate || !compiling) {
-      execute(interpreter, instr_p);
-    } else {
-      compile_comma(interpreter);
-      next(instr_p);
-    }
-  } else {
-    flagged_cell number = parse_number(token);
-    if (number.success) {
-      if (compiling) {
-        compile_number(number.value);
-      } else {
-        push(number.value);
-      }
-    } else if (token.len > 0) {
-      fprintf(stderr, "Error parsing word \"%s\"\n", &data[token.data_p]);
-    }
-    next(instr_p);
+static void compile_string_literal(const char *str) {
+  find_and_compile("STRLIT");
+  cell len = strlen(str);
+  data_p += uleb128_encode(len, &data[data_p]);
+  for (int i = 0; i < len; i++) {
+    data[data_p + i] = str[i];
   }
+  data_p += len;
+}
+
+static void emit(uint8_t *instr_p, uint8_t *instr_code) {
+  char c = pop();
+  putc(c, stdout);
+  next(instr_p);
+}
+
+static void print(uint8_t *instr_p, uint8_t *instr_code) {
+  cell len = pop();
+  cell data_p = pop();
+  printf("%.*s", len, &data[data_p]);
+  next(instr_p);
+}
+
+static void print_number(cell value) {
+  const int max_digits = 8 * sizeof(cell);
+  char buffer[max_digits];
+  buffer[max_digits - 1] = '0';
+  int i;
+  for (i = 0; value != 0; i++) {
+    char digit = value % base;
+    if (digit < 10)
+      buffer[max_digits - i - 1] = '0' + digit;
+    else
+      buffer[max_digits - i - 1] = 'A' + digit - 10;
+    value /= base;
+  }
+  i = MAX(1, i);
+  printf("%.*s", i, &buffer[max_digits - i]);
+}
+
+static void dot(uint8_t *instr_p, uint8_t *instr_code) {
+  scell value = pop();
+  bool negative = value < 0;
+  if (negative) {
+    printf("-");
+    value = -value;
+  }
+  print_number(value);
+  next(instr_p);
+}
+
+static void udot(uint8_t *instr_p, uint8_t *instr_code) {
+  cell value = pop();
+  print_number(value);
+  next(instr_p);
 }
 
 static void chardump(const uint8_t *buffer, size_t len) {
@@ -551,6 +604,16 @@ static void chardump(const uint8_t *buffer, size_t len) {
       // UTF-8 encoded WHITE SQUARE (25A1)
       printf("\xe2\x96\xa1");
 }
+
+static void assert(cell value, cell expected, const char *file,
+                   const int line) {
+  if (value != expected) {
+    fprintf(stderr, "%s:%d Value %d != expected %d\n", file, line, value,
+            expected);
+    exit(1);
+  }
+}
+#define ASSERT(value, expected) assert(value, expected, __FILE__, __LINE__);
 
 static void hexdump(const uint8_t *buffer, size_t len) {
   if (len > 0) {
@@ -719,7 +782,93 @@ static cell init_dict(void) {
   add_native("BYE", &exit_and_print);
   add_native(".S", &inspect_stack);
 
-  add_native("INTERPRET", &interpret);
+  add_native("?REFILL", &refill_if_needed);
+  add_native("WORD", &word);
+  add_native("FIND", &find);
+  add_native("EXECUTE", &execute);
+  add_native("COMPILE,", &compile_comma);
+  add_native("PARSE-NUMBER", &parse_number);
+  add_native("LITERAL", &forth_compile_number);
+  add_native("STRLIT", &str_lit);
+  add_native("EMIT", &emit);
+  add_native("TYPE", &print);
+  add_native(".", &dot);
+  add_native("U.", &udot);
+
+#define IF(name, size)                                                         \
+  find_and_compile("(IF)");                                                    \
+  cell if_##name = data_p;                                                     \
+  cell if_##name##_size = size;                                                \
+  data_p += size; /* Reserve space for jump offset literal */
+#define ELSE(name, size)                                                       \
+  find_and_compile("(ELSE)");                                                  \
+  ASSERT(uleb128_bytes(data_p + size - if_##name), if_##name##_size);          \
+  uleb128_encode((scell)(data_p + size - if_##name), &data[if_##name]);        \
+  if_##name = data_p;                                                          \
+  if_##name##_size = size;                                                     \
+  data_p += size; /* Reserve space for jump offset literal */
+#define THEN(name)                                                             \
+  ASSERT(uleb128_bytes(data_p - if_##name), if_##name##_size);                 \
+  uleb128_encode((scell)(data_p - if_##name), &data[if_##name]);
+
+  CREATE("INTERPRET", 0);
+  ENTER;
+  find_and_compile("?REFILL");
+  IF(has_input, 1);
+  {
+    find_and_compile("WORD");
+    find_and_compile("FIND");
+    find_and_compile("DUP");
+
+    IF(found, 1);
+    {
+      find_and_compile("1+");
+      find_and_compile("COMPILING");
+      find_and_compile("@");
+      find_and_compile("0=");
+      find_and_compile("OR");
+      IF(immediate_or_interpreting, 1);
+      find_and_compile("EXECUTE");
+      ELSE(immediate_or_interpreting, 1);
+      find_and_compile("COMPILE,");
+      THEN(immediate_or_interpreting);
+      find_and_compile("(;)");
+    }
+    ELSE(found, 1);
+    {
+      find_and_compile("DROP");
+      find_and_compile("PARSE-NUMBER");
+      IF(number, 1);
+      {
+        find_and_compile("COMPILING");
+        find_and_compile("@");
+        IF(compiling, 1);
+        find_and_compile("LITERAL");
+        THEN(compiling);
+        find_and_compile("(;)");
+      }
+      THEN(number);
+    }
+    THEN(found);
+    find_and_compile("DUP");
+    IF(nonempty, 1);
+    {
+      compile_string_literal("\"");
+      find_and_compile("TYPE");
+      find_and_compile("TYPE");
+      compile_string_literal("\" is not a number or word\n");
+      find_and_compile("TYPE");
+    }
+    ELSE(nonempty, 1);
+    {
+      find_and_compile("DROP");
+      find_and_compile("DROP");
+    }
+    THEN(nonempty);
+    find_and_compile("(;)");
+  }
+  THEN(has_input);
+  find_and_compile("BYE");
 
   CREATE("QUIT", 0);
   ENTER;
