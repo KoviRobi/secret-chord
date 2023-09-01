@@ -42,6 +42,7 @@ cell compiling;
 cell base = 10;
 cell input_index;
 cell input_buffer;
+FILE *input_source;
 cell input_size;
 cell data_p = 4;
 alignas(max_align_t) uint8_t data[4096] = {0xEF, 0xCD, 0xAB, 0x89};
@@ -356,8 +357,8 @@ static bool is_separator(char n) {
 
 static bool refill_if_needed(void) {
   if (input_index >= input_size) {
-    char *input = read_line("> ");
-    if (input)
+    char *input = read_line(input_source, "> ");
+    if (input != NULL)
       input_size = strlen(input);
     else
       input_size = 0;
@@ -688,6 +689,18 @@ int main(int argc, char *argv[]) {
 
   hexdump(data, data_p);
 
+  for (int i = 1; i < argc; i++) {
+    input_source = fopen(argv[i], "r");
+    if (!input_source) {
+      printf("Failed to open file \"%s\"\n", argv[i]);
+      exit(1);
+    }
+    next(&data[start]);
+    fclose(input_source);
+  }
+
+  input_source = stdin;
   next(&data[start]);
+
   return 0;
 }
