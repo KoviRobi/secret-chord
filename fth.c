@@ -321,6 +321,58 @@ static void create(const char *name, cell len, dict_flags flags) {
     data_p += sizeof(instruction *);                                           \
   }
 
+static void new_entry(uint8_t *instr_p, uint8_t *instr_code) {
+  cell len = pop();
+  cell name_p = pop();
+  create((const char *)&data[name_p], len, (dict_flags){.hidden = true});
+  next(instr_p);
+}
+
+static void compile_interpreter(uint8_t *instr_p, uint8_t *instr_code) {
+  value_size interpreter = uleb128_decode(instr_p);
+  instr_p += interpreter.size;
+  instruction **aligned = (instruction **)&data[data_p];
+  *aligned = (instruction *)interpreter.value;
+  data_p += sizeof(instruction *);
+  next(instr_p);
+}
+
+static void interpreter_to_code(uint8_t *instr_p, uint8_t *instr_code) {
+  cell interpreter = pop();
+  push(interpreter * sizeof(instruction *) + sizeof(instruction *));
+  next(instr_p);
+}
+
+static void immediate_fetch(uint8_t *instr_p, uint8_t *instr_code) {
+  cell execution_token = pop();
+  dict_flags flags = {.as_byte = data[execution_token]};
+  push(BOOL(flags.immediate != 0));
+  next(instr_p);
+}
+
+static void immediate_store(uint8_t *instr_p, uint8_t *instr_code) {
+  cell execution_token = pop();
+  dict_flags flags = {.as_byte = data[execution_token]};
+  flags.immediate = pop() != 0;
+  data[execution_token] = flags.as_byte;
+  next(instr_p);
+}
+
+static void hidden_fetch(uint8_t *instr_p, uint8_t *instr_code) {
+  cell execution_token = pop();
+  dict_flags flags = {.as_byte = data[execution_token]};
+  push(BOOL(flags.hidden != 0));
+  next(instr_p);
+}
+
+static void hidden_store(uint8_t *instr_p, uint8_t *instr_code) {
+  cell execution_token = pop();
+  dict_flags flags = {.as_byte = data[execution_token]};
+  flags.hidden = pop() != 0;
+  data[execution_token] = flags.as_byte;
+  next(instr_p);
+}
+
 static void add_native(const char *name, instruction *code) {
   create(name, strlen(name), (dict_flags){.immediate = false, .hidden = false});
   instruction **aligned = (instruction **)&data[data_p];
@@ -341,6 +393,11 @@ static void add_variable(const char *name, cell *addr) {
   *aligned_code = &constant;
   data_p += sizeof(instruction *);
   data_p += leb128_encode((scell)((uint8_t *)addr - data), &data[data_p]);
+}
+
+static void variable(uint8_t *instr_p, uint8_t *instr_code) {
+  push(instr_code - data);
+  next(instr_p);
 }
 
 static cell find_in_dict(uint64_t name_len, const char *name) {
@@ -903,6 +960,90 @@ static cell init_dict(void) {
   }
   THEN(has_input);
   find_and_compile("BYE");
+
+  add_native("NEW-ENTRY", &new_entry);
+  add_native("INTERPRETER,", &compile_interpreter);
+  add_native("INTERPRETER>CODE", &interpreter_to_code);
+  add_native("IMMEDIATE@", &immediate_fetch);
+  add_native("IMMEDIATE!", &immediate_store);
+  add_native("HIDDEN@", &hidden_fetch);
+  add_native("HIDDEN!", &hidden_store);
+
+  CREATE("+!", 0);
+  ENTER;
+  find_and_compile("SWAP"); // addr data
+  find_and_compile("OVER"); // addr data addr
+  find_and_compile("@");
+  find_and_compile("+"); // addr data+*addr
+  find_and_compile("SWAP");
+  find_and_compile("!");
+  find_and_compile("(;)");
+
+  CREATE("[", .immediate = true);
+  ENTER;
+  find_and_compile("COMPILING");
+  find_and_compile("@");
+  find_and_compile("DUP");
+  IF(nonzero, 1);
+  find_and_compile("1-");
+  THEN(nonzero);
+  find_and_compile("COMPILING");
+  find_and_compile("!");
+  find_and_compile("(;)");
+
+  CREATE("]", .immediate = true);
+  ENTER;
+  compile_number(1);
+  find_and_compile("COMPILING");
+  find_and_compile("+!");
+  find_and_compile("(;)");
+
+  CREATE("REVEAL", 0);
+  ENTER;
+  compile_number(FORTH_FALSE);
+  find_and_compile("LATEST");
+  find_and_compile("@");
+  find_and_compile("HIDDEN!");
+  find_and_compile("(;)");
+
+  CREATE("CONSTANT", 0);
+  ENTER;
+  find_and_compile("WORD");
+  find_and_compile("NEW-ENTRY");
+  find_and_compile("INTERPRETER,");
+  data_p += uleb128_encode((uintptr_t)&constant, &data[data_p]);
+  find_and_compile(",");
+  find_and_compile("REVEAL");
+  find_and_compile("(;)");
+
+  CREATE("VARIABLE", 0);
+  ENTER;
+  find_and_compile("WORD");
+  find_and_compile("NEW-ENTRY");
+  find_and_compile("INTERPRETER,");
+  data_p += uleb128_encode((uintptr_t)&variable, &data[data_p]);
+  compile_number(0);
+  find_and_compile(",");
+  find_and_compile("REVEAL");
+  find_and_compile("(;)");
+
+  CREATE(":", 0);
+  ENTER;
+  find_and_compile("WORD");
+  find_and_compile("NEW-ENTRY");
+  find_and_compile("INTERPRETER,");
+  data_p += uleb128_encode((uintptr_t)&forth_enter, &data[data_p]);
+  find_and_compile("]");
+  find_and_compile("(;)");
+
+  CREATE(";", .immediate = true);
+  ENTER;
+  find_and_compile("ULIT");
+  data_p += uleb128_encode(find_in_dict(3, "(;)"), &data[data_p]);
+  find_and_compile("COMPILE,");
+  find_and_compile("[");
+  find_and_compile("REVEAL");
+  find_and_compile("(;)");
 
   CREATE("QUIT", 0);
   ENTER;
