@@ -26,6 +26,7 @@ _Static_assert(sizeof(dict_flags) == 1, "Size of flags != one byte");
 cell stack[512 + 256];
 cell rstack[256];
 cell stack_p;
+cell ret_p;
 cell latest;
 cell data_p = 4;
 alignas(max_align_t) uint8_t data[4096] = {0xEF, 0xCD, 0xAB, 0x89};
@@ -56,12 +57,24 @@ alignas(max_align_t) uint8_t data[4096] = {0xEF, 0xCD, 0xAB, 0x89};
 static cell pop(void) { return POP(stack, stack_p); }
 static void push(cell value) { PUSH(stack, stack_p, value); }
 
+static cell r_pop(void) { return POP(rstack, ret_p); }
+static void r_push(cell value) { PUSH(rstack, ret_p, value); }
+
 static void next(uint8_t *next_instr) {
   value_size decoded = uleb128_decode(next_instr);
   instruction **interpreter = (instruction **)(data + decoded.value);
   uint8_t *instr_code = (uint8_t *)(interpreter + 1);
   (*interpreter)(next_instr + decoded.size, instr_code);
 }
+
+static void forth_enter(uint8_t *instr_p, uint8_t *instr_code) {
+  r_push((cell)(instr_p - data));
+  next(instr_code);
+}
+
+static void forth_exit(uint8_t *instr_p, uint8_t *_instr_code) {
+  next(&data[r_pop()]);
+};
 
 #define BINOP(name, cell_t, op)                                                \
   static void name(uint8_t *instr_p, uint8_t *_instr_code) {                   \
@@ -111,6 +124,18 @@ static void invert(uint8_t *instr_p, uint8_t *_instr_code) {
 static void is_zero(uint8_t *instr_p, uint8_t *_instr_code) {
   cell a = pop();
   push(BOOL(a == 0));
+  next(instr_p);
+}
+
+static void to_r(uint8_t *instr_p, uint8_t *_instr_code) {
+  cell a = pop();
+  r_push(a);
+  next(instr_p);
+}
+
+static void r_from(uint8_t *instr_p, uint8_t *_instr_code) {
+  cell a = r_pop();
+  push(a);
   next(instr_p);
 }
 
@@ -279,6 +304,14 @@ static void create(const char *name, cell len, dict_flags flags) {
 
 #define CREATE(name, flags) create((name), strlen(name), (dict_flags){flags})
 
+#define ENTER                                                                  \
+  {                                                                            \
+    /* CREATE aligns DATA_P */                                                 \
+    instruction **aligned = (instruction **)&data[data_p];                     \
+    *aligned = forth_enter;                                                    \
+    data_p += sizeof(instruction *);                                           \
+  }
+
 static void add_native(const char *name, instruction *code) {
   create(name, strlen(name), (dict_flags){.immediate = false, .hidden = false});
   instruction **aligned = (instruction **)&data[data_p];
@@ -446,6 +479,24 @@ static cell init_dict(void) {
   add_native("ULEB128,", &uleb128_append);
   add_native("ULEB128-SIZE", &uleb128_size);
 
+  add_native("(:)", &forth_enter);
+  add_native("(;)", &forth_exit);
+
+  add_native(">R", &to_r);
+  add_native("R>", &r_from);
+
+  CREATE("1+", 0);
+  ENTER;
+  compile_number(1);
+  find_and_compile("+");
+  find_and_compile("(;)");
+
+  CREATE("1-", 0);
+  ENTER;
+  compile_number(1);
+  find_and_compile("-");
+  find_and_compile("(;)");
+
   add_native("BYE", &exit_and_print);
 
   cell start = data_p;
@@ -453,13 +504,13 @@ static cell init_dict(void) {
   compile_number(2);
   find_and_compile("OVER");
   find_and_compile("-");
+  find_and_compile("1+");
   find_and_compile("DUP");
-  find_and_compile("+");
-  compile_number(3);
   find_and_compile("ROT");
   find_and_compile("AND");
   find_and_compile("OR");
   find_and_compile("INVERT");
+  find_and_compile("1-");
   find_and_compile("BYE");
 
   return start;
