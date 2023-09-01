@@ -30,6 +30,10 @@ cell latest;
 cell data_p = 4;
 alignas(max_align_t) uint8_t data[4096] = {0xEF, 0xCD, 0xAB, 0x89};
 
+#define FORTH_TRUE (-1)
+#define FORTH_FALSE (0)
+#define BOOL(x) (x) ? (FORTH_TRUE) : (FORTH_FALSE)
+
 #define align(var, alignment)                                                  \
   ((var) + (alignof(alignment) - 1)) & ~(alignof(alignment) - 1)
 
@@ -59,11 +63,31 @@ static void next(uint8_t *next_instr) {
   (*interpreter)(next_instr + decoded.size, instr_code);
 }
 
-static void add(uint8_t *instr_p, uint8_t *_instr_code) {
-  cell a = pop(), b = pop();
-  push(a + b);
-  next(instr_p);
-}
+#define BINOP(name, cell_t, op)                                                \
+  static void name(uint8_t *instr_p, uint8_t *_instr_code) {                   \
+    cell_t b = pop(), a = pop();                                               \
+    push(a op b);                                                              \
+    next(instr_p);                                                             \
+  }
+
+BINOP(add, cell, +);
+BINOP(sub, cell, -);
+BINOP(mul, cell, *);
+BINOP(forth_div, cell, /);
+BINOP(rem, cell, %);
+BINOP(and, cell, &);
+BINOP(or, cell, |);
+BINOP(xor, cell, ^);
+BINOP(eq, cell, ==);
+BINOP(ne, cell, !=);
+BINOP(ult, cell, <);
+BINOP(ule, cell, <=);
+BINOP(ugt, cell, >);
+BINOP(uge, cell, >=);
+BINOP(lt, scell, <);
+BINOP(le, scell, <=);
+BINOP(gt, scell, >);
+BINOP(ge, scell, >=);
 
 static void ulit(uint8_t *instr_p, uint8_t *_instr_code) {
   value_size literal = uleb128_decode(instr_p);
@@ -76,6 +100,165 @@ static void lit(uint8_t *instr_p, uint8_t *_instr_code) {
   value_size literal = leb128_decode(instr_p);
   instr_p += literal.size;
   push(literal.value);
+  next(instr_p);
+}
+
+static void invert(uint8_t *instr_p, uint8_t *_instr_code) {
+  push(~pop());
+  next(instr_p);
+}
+
+static void is_zero(uint8_t *instr_p, uint8_t *_instr_code) {
+  cell a = pop();
+  push(BOOL(a == 0));
+  next(instr_p);
+}
+
+static void drop(uint8_t *instr_p, uint8_t *_instr_code) {
+  pop();
+  next(instr_p);
+}
+
+static void dup(uint8_t *instr_p, uint8_t *_instr_code) {
+  cell a = pop();
+  push(a);
+  push(a);
+  next(instr_p);
+}
+
+static void swap(uint8_t *instr_p, uint8_t *_instr_code) {
+  cell a = pop(), b = pop();
+  push(a), push(b);
+  next(instr_p);
+}
+
+static void pick(uint8_t *instr_p, uint8_t *_instr_code) {
+  cell n = pop();
+  push(stack[stack_p - n - 1]);
+  next(instr_p);
+}
+
+static void over(uint8_t *instr_p, uint8_t *_instr_code) {
+  push(stack[stack_p - 2]);
+  next(instr_p);
+}
+
+static void nip(uint8_t *instr_p, uint8_t *_instr_code) {
+  cell a = pop();
+  pop();
+  push(a);
+  next(instr_p);
+}
+
+static void rot(uint8_t *instr_p, uint8_t *_instr_code) {
+  cell a = pop(), b = pop(), c = pop();
+  push(b), push(a), push(c);
+  next(instr_p);
+}
+
+static void fetch(uint8_t *instr_p, uint8_t *_instr_code) {
+  push(*(cell *)&data[pop()]);
+  next(instr_p);
+}
+
+static void store(uint8_t *instr_p, uint8_t *_instr_code) {
+  cell *addr = (cell *)&data[pop()];
+  cell value = pop();
+  *addr = value;
+  next(instr_p);
+}
+
+static void append(uint8_t *instr_p, uint8_t *_instr_code) {
+  cell value = pop();
+  *(cell *)&data[data_p] = value;
+  data_p += sizeof(cell);
+  next(instr_p);
+}
+
+static void char_fetch(uint8_t *instr_p, uint8_t *_instr_code) {
+  push(*(char *)&data[pop()]);
+  next(instr_p);
+}
+
+static void char_store(uint8_t *instr_p, uint8_t *_instr_code) {
+  char *addr = (char *)&data[pop()];
+  cell value = pop();
+  *addr = value;
+  next(instr_p);
+}
+
+static void char_append(uint8_t *instr_p, uint8_t *_instr_code) {
+  char value = pop();
+  *(char *)&data[data_p] = value;
+  data_p += sizeof(char);
+  next(instr_p);
+}
+
+static void leb128_fetch(uint8_t *instr_p, uint8_t *_instr_code) {
+  cell addr = pop();
+  value_size decoded = leb128_decode(&data[addr]);
+  push((cell)decoded.value);
+  push(decoded.size);
+  next(instr_p);
+}
+
+static void leb128_store(uint8_t *instr_p, uint8_t *_instr_code) {
+  cell addr = pop();
+  cell value = pop();
+  cell size = leb128_encode(value, &data[addr]);
+  push(size);
+  next(instr_p);
+}
+
+static void leb128_append(uint8_t *instr_p, uint8_t *_instr_code) {
+  cell value = pop();
+  cell size = leb128_encode(value, &data[data_p]);
+  data_p += size;
+  push(size);
+  next(instr_p);
+}
+
+static void leb128_size(uint8_t *instr_p, uint8_t *_instr_code) {
+  cell value = pop();
+  cell size = leb128_bytes(value);
+  push(size);
+  next(instr_p);
+}
+
+static void uleb128_fetch(uint8_t *instr_p, uint8_t *_instr_code) {
+  cell addr = pop();
+  value_size decoded = uleb128_decode(&data[addr]);
+  push((cell)decoded.value);
+  push(decoded.size);
+  next(instr_p);
+}
+
+static void uleb128_store(uint8_t *instr_p, uint8_t *_instr_code) {
+  cell addr = pop();
+  cell value = pop();
+  cell size = uleb128_encode(value, &data[addr]);
+  push(size);
+  next(instr_p);
+}
+
+static void uleb128_append(uint8_t *instr_p, uint8_t *_instr_code) {
+  cell value = pop();
+  cell size = uleb128_encode(value, &data[data_p]);
+  data_p += size;
+  push(size);
+  next(instr_p);
+}
+
+static void uleb128_size(uint8_t *instr_p, uint8_t *_instr_code) {
+  cell value = pop();
+  cell size = uleb128_bytes(value);
+  push(size);
+  next(instr_p);
+}
+
+static void ternary(uint8_t *instr_p, uint8_t *_instr_code) {
+  cell c = pop(), b = pop(), a = pop();
+  push(a ? b : c);
   next(instr_p);
 }
 
@@ -214,13 +397,69 @@ static cell init_dict(void) {
   add_native("ULIT", &ulit);
 
   add_native("+", &add);
+  add_native("-", &sub);
+  add_native("*", &mul);
+  add_native("/", &forth_div);
+  add_native("%", &rem);
+  add_native("=", &eq);
+  add_native("<>", &ne);
+  add_native("<", &lt);
+  add_native("<=", &le);
+  add_native(">", &gt);
+  add_native(">=", &ge);
+  add_native("U<", &ult);
+  add_native("U<=", &ule);
+  add_native("U>", &ugt);
+  add_native("U>=", &uge);
+
+  add_native("DROP", &drop);
+  add_native("DUP", &dup);
+  add_native("ROT", &rot);
+  add_native("SWAP", &swap);
+  add_native("PICK", &pick);
+  add_native("OVER", &over);
+  add_native("NIP", &nip);
+
+  add_native("AND", &and);
+  add_native("OR", & or);
+  add_native("XOR", &xor);
+  add_native("INVERT", &invert);
+
+  add_native("0=", &is_zero);
+
+  add_native("@", &fetch);
+  add_native("!", &store);
+  add_native(",", &append);
+
+  add_native("C@", &char_fetch);
+  add_native("C!", &char_store);
+  add_native("C,", &char_append);
+
+  add_native("?:", &ternary);
+
+  add_native("LEB128@", &leb128_fetch);
+  add_native("LEB128!", &leb128_store);
+  add_native("LEB128,", &leb128_append);
+  add_native("LEB128-SIZE", &leb128_size);
+  add_native("ULEB128@", &uleb128_fetch);
+  add_native("ULEB128!", &uleb128_store);
+  add_native("ULEB128,", &uleb128_append);
+  add_native("ULEB128-SIZE", &uleb128_size);
 
   add_native("BYE", &exit_and_print);
 
   cell start = data_p;
   compile_number(1);
   compile_number(2);
+  find_and_compile("OVER");
+  find_and_compile("-");
+  find_and_compile("DUP");
   find_and_compile("+");
+  compile_number(3);
+  find_and_compile("ROT");
+  find_and_compile("AND");
+  find_and_compile("OR");
+  find_and_compile("INVERT");
   find_and_compile("BYE");
 
   return start;
