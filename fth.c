@@ -102,20 +102,6 @@ BINOP(le, scell, <=);
 BINOP(gt, scell, >);
 BINOP(ge, scell, >=);
 
-static void ulit(uint8_t *instr_p, uint8_t *_instr_code) {
-  value_size literal = uleb128_decode(instr_p);
-  instr_p += literal.size;
-  push(literal.value);
-  next(instr_p);
-}
-
-static void lit(uint8_t *instr_p, uint8_t *_instr_code) {
-  value_size literal = leb128_decode(instr_p);
-  instr_p += literal.size;
-  push(literal.value);
-  next(instr_p);
-}
-
 static void invert(uint8_t *instr_p, uint8_t *_instr_code) {
   push(~pop());
   next(instr_p);
@@ -426,8 +412,6 @@ static void hexdump(const uint8_t *buffer, size_t len) {
 }
 
 static cell init_dict(void) {
-  add_native("LIT", &lit);
-  add_native("ULIT", &ulit);
 
   add_native("+", &add);
   add_native("-", &sub);
@@ -484,6 +468,26 @@ static cell init_dict(void) {
 
   add_native(">R", &to_r);
   add_native("R>", &r_from);
+
+  CREATE("LIT", 0);
+  ENTER;
+  find_and_compile("R>");      // R
+  find_and_compile("DUP");     // R R
+  find_and_compile("LEB128@"); // R VAL SIZE
+  find_and_compile("ROT");     // VAL SIZE R
+  find_and_compile("+");       // VAL SIZE+R
+  find_and_compile(">R");      // VAL
+  find_and_compile("(;)");
+
+  CREATE("ULIT", 0);
+  ENTER;
+  find_and_compile("R>");       // R
+  find_and_compile("DUP");      // R R
+  find_and_compile("ULEB128@"); // R VAL SIZE
+  find_and_compile("ROT");      // VAL SIZE R
+  find_and_compile("+");        // VAL SIZE+R
+  find_and_compile(">R");       // VAL
+  find_and_compile("(;)");
 
   CREATE("1+", 0);
   ENTER;
