@@ -682,6 +682,28 @@ static cell init_dict(void) {
   find_and_compile(">R");
   find_and_compile("(;)");
 
+  CREATE("(IF)", 0);
+  ENTER;
+  find_and_compile("0=");
+  find_and_compile("R>"); // 0= RET
+  find_and_compile("SWAP");
+  find_and_compile("OVER");
+  find_and_compile("ULEB128@"); // RET 0= OFF OFF_SIZE
+  find_and_compile("?:");       // RET OFF/OFF_SIZE
+  find_and_compile("+");
+  find_and_compile(">R");
+  find_and_compile("(;)");
+
+  CREATE("(ELSE)", 0);
+  ENTER;
+  find_and_compile("R>");
+  find_and_compile("DUP");
+  find_and_compile("ULEB128@");
+  find_and_compile("DROP");
+  find_and_compile("+");
+  find_and_compile(">R");
+  find_and_compile("(;)");
+
   CREATE("1+", 0);
   ENTER;
   compile_number(1);
