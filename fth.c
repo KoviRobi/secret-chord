@@ -489,6 +489,16 @@ static cell init_dict(void) {
   find_and_compile(">R");       // VAL
   find_and_compile("(;)");
 
+  CREATE("(AGAIN)", 0);
+  ENTER;
+  find_and_compile("R>");       // R
+  find_and_compile("DUP");      // R R
+  find_and_compile("ULEB128@"); // R VAL SIZE
+  find_and_compile("DROP");     // R VAL
+  find_and_compile("-");        // R-VAL
+  find_and_compile(">R");
+  find_and_compile("(;)");
+
   CREATE("1+", 0);
   ENTER;
   compile_number(1);
@@ -503,6 +513,8 @@ static cell init_dict(void) {
 
   add_native("BYE", &exit_and_print);
 
+  cell exit = data_p;
+  find_and_compile("BYE");
   cell start = data_p;
   compile_number(1);
   compile_number(2);
@@ -515,7 +527,8 @@ static cell init_dict(void) {
   find_and_compile("OR");
   find_and_compile("INVERT");
   find_and_compile("1-");
-  find_and_compile("BYE");
+  find_and_compile("(AGAIN)");
+  data_p += uleb128_encode(data_p - exit, &data[data_p]);
 
   return start;
 };
