@@ -66,9 +66,26 @@ static void push(cell value) { PUSH(stack, stack_p, value); }
 static cell r_pop(void) { return POP(rstack, ret_p); }
 static void r_push(cell value) { PUSH(rstack, ret_p, value); }
 
+#ifdef TRACE
+static uint8_t *find_by_addr(uint8_t *interpreter_addr);
+static cell frames = 0;
+#endif
+
 static void next(uint8_t *next_instr) {
   value_size decoded = uleb128_decode(next_instr);
   instruction **interpreter = (instruction **)(data + decoded.value);
+
+#ifdef TRACE
+  uint8_t *counted_str = find_by_addr(data + decoded.value);
+  if (counted_str) {
+    value_size strlen = uleb128_decode(counted_str);
+    const char *str = (const char *)(counted_str + strlen.size);
+    printf("%.*s %.*s\n", MIN(ret_p, 5), "----+", (int)strlen.value, str);
+  } else {
+    printf("0x%04lX\n", decoded.value);
+  }
+#endif
+
   uint8_t *instr_code = (uint8_t *)(interpreter + 1);
   (*interpreter)(next_instr + decoded.size, instr_code);
 }
@@ -402,6 +419,23 @@ static cell to_interpreter(cell entry) {
   entry = align(entry, instruction *);
   return entry;
 }
+
+#ifdef TRACE
+static uint8_t *find_by_addr(uint8_t *interpreter_addr) {
+  cell entry = latest;
+  while (entry != 0) {
+    cell start = entry;
+    entry += sizeof(dict_flags);
+    value_size next_offset = leb128_decode(&data[entry]);
+    entry += next_offset.size;
+    if (&data[to_interpreter(start)] == interpreter_addr) {
+      return &data[entry];
+    }
+    entry = start + next_offset.value;
+  }
+  return 0;
+}
+#endif
 
 static void execute(uint8_t *instr_p, uint8_t *old_instr_code) {
   cell execution_token = pop();
