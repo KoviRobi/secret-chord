@@ -37,18 +37,17 @@ void expect_bytes(uint8_t *expected, size_t size, char *file, unsigned line) {
   expect_bytes(((uint8_t[]){__VA_ARGS__}), sizeof((uint8_t[]){__VA_ARGS__}),   \
                __FILE__, __LINE__)
 
-void expect_long(uint64_t expected, uint64_t value, char *file, unsigned line) {
+void expect_int(uint32_t expected, uint32_t value, char *file, unsigned line) {
   if (expected != value) {
-    printf("ERROR:%s:%u: Expected 0x%lX != 0x%lX\n", file, line, expected,
-           value);
+    printf("ERROR:%s:%u: Expected 0x%X != 0x%X\n", file, line, expected, value);
     fail = true;
   }
 }
 
-void expect_decoded(uint64_t expected, uint8_t size, char *file,
+void expect_decoded(uint32_t expected, uint8_t size, char *file,
                     unsigned line) {
-  expect_long(expected, decoded.value, file, line);
-  expect_long(size, decoded.size, file, line);
+  expect_int(expected, decoded.value, file, line);
+  expect_int(size, decoded.size, file, line);
 }
 
 #ifndef __STDC_LIB_EXT1__
@@ -95,9 +94,9 @@ int main(void) {
   EXPECT_BYTES(0xE5, 0x8E, 0x26);
 
   memset(buffer, 0, sizeof(buffer));
-  uleb128_encode(UINT64_MAX, buffer);
-  // 9 * 7 = 63 bits, so we need the 10th byte for the last bit
-  EXPECT_BYTES(0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01);
+  uleb128_encode(UINT32_MAX, buffer);
+  // 4 * 7 = 28 bits, so we need 4 bits in the 5th byte
+  EXPECT_BYTES(0xFF, 0xFF, 0xFF, 0xFF, 0x0F);
 
   memcpy(buffer, (uint8_t[sizeof(buffer)]){0}, sizeof(buffer));
   decoded = uleb128_decode(buffer);
@@ -133,11 +132,11 @@ int main(void) {
                                    0xFF, 0xFF, 0x01},
          sizeof(buffer));
   decoded = uleb128_decode(buffer);
-  expect_decoded(UINT64_MAX, 10, __FILE__, __LINE__);
+  expect_decoded(UINT32_MAX, 5, __FILE__, __LINE__);
 
   for (int i = 0; i < 100; i++) {
     uint8_t buffer2[sizeof(buffer)];
-    uint64_t value = (uint64_t)rand() << 32 | rand();
+    uint32_t value = rand();
     uint8_t size = uleb128_bytes(value);
     uint8_t bytes;
 
@@ -149,8 +148,8 @@ int main(void) {
     for (bytes = 0; buffer[bytes] & 0x80; bytes++)
       ;
     bytes++;
-    expect_long(size, bytes, __FILE__, __LINE__);
-    expect_long(size2, bytes, __FILE__, __LINE__);
+    expect_int(size, bytes, __FILE__, __LINE__);
+    expect_int(size2, bytes, __FILE__, __LINE__);
     expect_decoded(value, size, __FILE__, __LINE__);
     uleb128_encode(value, buffer);
     expect_bytes(buffer2, size, __FILE__, __LINE__);
@@ -177,12 +176,12 @@ int main(void) {
   EXPECT_BYTES(0x80, 0x7F);
 
   memset(buffer, 0, sizeof(buffer));
-  leb128_encode(INT64_MAX, buffer);
-  EXPECT_BYTES(0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00);
+  leb128_encode(INT32_MAX, buffer);
+  EXPECT_BYTES(0xFF, 0xFF, 0xFF, 0xFF, 0x07);
 
   memset(buffer, 0, sizeof(buffer));
-  leb128_encode(INT64_MIN, buffer);
-  EXPECT_BYTES(0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x7F);
+  leb128_encode(INT32_MIN, buffer);
+  EXPECT_BYTES(0x80, 0x80, 0x80, 0x80, 0x78);
 
   memcpy(buffer, (uint8_t[sizeof(buffer)]){0}, sizeof(buffer));
   decoded = leb128_decode(buffer);
@@ -218,12 +217,12 @@ int main(void) {
                                    0xFF, 0xFF, 0x01},
          sizeof(buffer));
   decoded = leb128_decode(buffer);
-  expect_decoded(UINT64_MAX, 10, __FILE__, __LINE__);
+  expect_decoded(UINT32_MAX, 5, __FILE__, __LINE__);
 
   for (int i = 0; i < 100; i++) {
     uint8_t buffer2[sizeof(buffer)];
-    uint64_t uvalue = (uint64_t)rand() << 32 | rand();
-    int64_t value = (int64_t)uvalue;
+    uint32_t uvalue = rand();
+    int32_t value = (int32_t)uvalue;
     // Note for signed size we need an extra bit for the sign, even if it is 0
     uint8_t size = leb128_bytes(value);
     uint8_t bytes;
@@ -236,8 +235,8 @@ int main(void) {
     for (bytes = 0; buffer[bytes] & 0x80; bytes++)
       ;
     bytes++;
-    expect_long(size, bytes, __FILE__, __LINE__);
-    expect_long(size2, bytes, __FILE__, __LINE__);
+    expect_int(size, bytes, __FILE__, __LINE__);
+    expect_int(size2, bytes, __FILE__, __LINE__);
     expect_decoded(value, size, __FILE__, __LINE__);
     leb128_encode(value, buffer);
     expect_bytes(buffer2, size, __FILE__, __LINE__);
@@ -248,7 +247,7 @@ int main(void) {
   clock_t start, end;
 
   start = clock();
-  for (uint64_t i = 0; i < iters; i++) {
+  for (uint32_t i = 0; i < iters; i++) {
     leb128_encode(value, buffer);
     leb128_encode(value, buffer);
     leb128_encode(value, buffer);
@@ -267,7 +266,7 @@ int main(void) {
          (float)(end - start) / CLOCKS_PER_SEC / 10 / iters);
 
   start = clock();
-  for (uint64_t i = 0; i < iters; i++) {
+  for (uint32_t i = 0; i < iters; i++) {
     decoded = leb128_decode(buffer);
     decoded = leb128_decode(buffer);
     decoded = leb128_decode(buffer);
@@ -286,7 +285,7 @@ int main(void) {
          (float)(end - start) / CLOCKS_PER_SEC / 10 / iters);
 
   start = clock();
-  for (uint64_t i = 0; i < iters; i++) {
+  for (uint32_t i = 0; i < iters; i++) {
     uleb128_encode(value, buffer);
     uleb128_encode(value, buffer);
     uleb128_encode(value, buffer);
@@ -305,7 +304,7 @@ int main(void) {
          (float)(end - start) / CLOCKS_PER_SEC / 10 / iters);
 
   start = clock();
-  for (uint64_t i = 0; i < iters; i++) {
+  for (uint32_t i = 0; i < iters; i++) {
     decoded = uleb128_decode(buffer);
     decoded = uleb128_decode(buffer);
     decoded = uleb128_decode(buffer);

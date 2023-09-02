@@ -1,6 +1,7 @@
 .PHONY: test
 
 CFLAGS?=-std=c11
+CFLAGS+= -m32
 CFLAGS+= -g -O2
 CFLAGS+= $(shell pkg-config --libs --cflags readline)
 

@@ -28,15 +28,17 @@
       # A Nixpkgs overlay.
       overlay = final: prev: {
 
-        fth = with final; stdenv.mkDerivation rec {
-          pname = "hello";
+        fth = with final; stdenv_32bit.mkDerivation rec {
+          pname = "fth";
           inherit version;
 
           src = ./.;
 
+          buildInputs = [
+            pkgsi686Linux.readline
+          ];
           nativeBuildInputs = [
             pkg-config
-            readline
             noweb
           ];
         };
@@ -51,16 +53,11 @@
 
       devShells = forAllSystems
         (system: {
-          default = with nixpkgsFor.${system}; mkShell rec {
+          default = nixpkgsFor.${system}.fth.overrideAttrs (old: {
             buildInputs = [
-              clang-tools
-            ] ++ self.packages.${system}.fth.buildInputs;
-            nativeBuildInputs = self.packages.${system}.fth.nativeBuildInputs;
-            INFOPATH =
-              nixpkgs.lib.concatStringsSep ":"
-                ((map (nixpkgs.lib.getOutput "info") buildInputs) ++
-                  (map (nixpkgs.lib.getOutput "info") nativeBuildInputs));
-          };
+              nixpkgsFor.${system}.clang-tools
+            ] ++ old.buildInputs;
+          });
         });
 
       # The default package for 'nix build'. This makes sense if the
