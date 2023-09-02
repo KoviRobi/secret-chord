@@ -321,6 +321,21 @@ static void add_native(const char *name, instruction *code) {
   data_p += sizeof(instruction *);
 }
 
+static void constant(uint8_t *instr_p, uint8_t *instr_code) {
+  value_size decoded = leb128_decode(instr_code);
+  push(decoded.value);
+  next(instr_p);
+}
+
+static void add_variable(const char *name, cell *addr) {
+  create(name, strlen(name), (dict_flags){.immediate = false, .hidden = false});
+  instruction **aligned_code = (instruction **)&data[data_p];
+  // The constant is the location of the variable
+  *aligned_code = &constant;
+  data_p += sizeof(instruction *);
+  data_p += leb128_encode((scell)((uint8_t *)addr - data), &data[data_p]);
+}
+
 static cell find_in_dict(uint64_t name_len, const char *name) {
   cell entry = latest;
   while (entry != 0) {
@@ -571,6 +586,15 @@ static void hexdump(const uint8_t *buffer, size_t len) {
 }
 
 static cell init_dict(void) {
+  add_variable("SP", &stack_p);
+  add_variable("RP", &ret_p);
+  add_variable("DP", &data_p);
+  add_variable("LATEST", &latest);
+  add_variable("COMPILING", &compiling);
+  add_variable("BASE", &base);
+  add_variable(">IN", &input_index);
+  add_variable("INPUT-BUFFER", &input_buffer);
+  add_variable("INPUT-SIZE", &input_size);
 
   add_native("+", &add);
   add_native("-", &sub);
@@ -675,10 +699,16 @@ static cell init_dict(void) {
 
   add_native("INTERPRET", &interpret);
 
+  CREATE("QUIT", 0);
+  ENTER;
   cell start = data_p;
+  compile_number(0);
+  find_and_compile("RP");
+  find_and_compile("!");
+  cell loop = data_p;
   find_and_compile("INTERPRET");
   find_and_compile("(AGAIN)");
-  data_p += uleb128_encode(data_p - start, &data[data_p]);
+  data_p += uleb128_encode(data_p - loop, &data[data_p]);
 
   return start;
 };
