@@ -73,10 +73,10 @@ static cell frames = 0;
 
 static void next(uint8_t *next_instr) {
   value_size decoded = uleb128_decode(next_instr);
-  instruction **interpreter = (instruction **)(data + decoded.value);
+  instruction **interpreter = &((instruction **)data)[decoded.value];
 
 #ifdef TRACE
-  uint8_t *counted_str = find_by_addr(data + decoded.value);
+  uint8_t *counted_str = find_by_addr((uint8_t *)interpreter);
   if (counted_str) {
     value_size strlen = uleb128_decode(counted_str);
     const char *str = (const char *)(counted_str + strlen.size);
@@ -191,12 +191,12 @@ static void rot(uint8_t *instr_p, uint8_t *_instr_code) {
 }
 
 static void fetch(uint8_t *instr_p, uint8_t *_instr_code) {
-  push(*(cell *)&data[pop()]);
+  push(*(cell *)&data[(scell)pop()]);
   next(instr_p);
 }
 
 static void store(uint8_t *instr_p, uint8_t *_instr_code) {
-  cell *addr = (cell *)&data[pop()];
+  cell *addr = (cell *)&data[(scell)pop()];
   cell value = pop();
   *addr = value;
   next(instr_p);
@@ -210,12 +210,12 @@ static void append(uint8_t *instr_p, uint8_t *_instr_code) {
 }
 
 static void char_fetch(uint8_t *instr_p, uint8_t *_instr_code) {
-  push(*(char *)&data[pop()]);
+  push(*(char *)&data[(scell)pop()]);
   next(instr_p);
 }
 
 static void char_store(uint8_t *instr_p, uint8_t *_instr_code) {
-  char *addr = (char *)&data[pop()];
+  char *addr = (char *)&data[(scell)pop()];
   cell value = pop();
   *addr = value;
   next(instr_p);
@@ -474,7 +474,7 @@ static cell to_interpreter(cell entry) {
   entry += strlen.value;
   // Align ENTRY
   entry = align(entry, instruction *);
-  return entry;
+  return entry / sizeof(instruction *);
 }
 
 #ifdef TRACE
@@ -497,7 +497,7 @@ static uint8_t *find_by_addr(uint8_t *interpreter_addr) {
 static void execute(uint8_t *instr_p, uint8_t *old_instr_code) {
   cell execution_token = pop();
   instruction **interpreter =
-      (instruction **)&data[to_interpreter(execution_token)];
+      &((instruction **)data)[to_interpreter(execution_token)];
   uint8_t *instr_code = (uint8_t *)(interpreter + 1);
   (*interpreter)(instr_p, instr_code);
 }
