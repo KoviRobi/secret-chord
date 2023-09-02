@@ -528,6 +528,28 @@ static cell to_interpreter(cell entry) {
   return entry / sizeof(instruction *);
 }
 
+static void see(uint8_t *instr_p, uint8_t *_instr_code) {
+  cell size = pop();
+  cell start = pop();
+  start = to_interpreter(start);
+  start *= sizeof(instruction *);
+  start += sizeof(instruction *);
+  cell end = start + size;
+  while (start < end) {
+    value_size decoded = uleb128_decode(&data[start]);
+    printf("0x%04X 0x%04X", start, decoded.value);
+    uint8_t *entry =
+        find_by_addr((uint8_t *)&((instruction **)data)[decoded.value]);
+    if (entry) {
+      value_size strlen = uleb128_decode(entry);
+      printf(" %.*s", strlen.value, entry + strlen.size);
+    }
+    printf("\n");
+    start += decoded.size;
+  }
+  next(instr_p);
+}
+
 static void execute(uint8_t *instr_p, uint8_t *old_instr_code) {
   cell execution_token = pop();
   instruction **interpreter =
@@ -1088,14 +1110,14 @@ static cell init_dict(void) {
   find_and_compile("(AGAIN)");
   data_p += uleb128_encode(data_p - loop, &data[data_p]);
 
+  add_native("SEE", &see);
+
   return start;
 };
 
 int main(int argc, char *argv[]) {
   input_init();
   cell start = init_dict();
-
-  hexdump(data, data_p);
 
   for (int i = 1; i < argc; i++) {
     if (argv[i][0] == '-') {
