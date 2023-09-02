@@ -35,6 +35,7 @@ cell input_buffer;
 FILE *input_source;
 cell input_size;
 cell data_p = 4;
+bool print_backtrace = true;
 alignas(max_align_t) uint8_t data[4096] = {0xEF, 0xCD, 0xAB, 0x89};
 
 #define FORTH_TRUE (-1)
@@ -418,11 +419,37 @@ static cell find_in_dict(uint64_t name_len, const char *name) {
   return 0;
 }
 
+uint8_t *find_by_addr(uint8_t *interpreter_addr) {
+  cell entry = latest;
+  while (entry != 0) {
+    cell start = entry;
+    entry += sizeof(dict_flags);
+    value_size next_offset = leb128_decode(&data[entry]);
+    entry += next_offset.size;
+    if (&data[start] <= interpreter_addr) {
+      return &data[entry];
+    }
+    entry = start + next_offset.value;
+  }
+  return 0;
+}
+
 static void exit_and_print(uint8_t *instr_p, uint8_t *_instr_code) {
-  printf("<%u>", stack_p);
+  printf("sp<%u>", stack_p);
   for (cell i = 0; i < stack_p; i++)
     printf(" %d", stack[i]);
+  r_push((cell)(instr_p - data));
+  if (print_backtrace) {
+    printf("\nrp<%u>", ret_p);
+    for (cell i = 0; i < ret_p; i++) {
+      uint8_t *entry = find_by_addr(&data[rstack[i]]);
+      value_size strlen = uleb128_decode(entry);
+      printf(" 0x%X <%.*s+%ld>", rstack[i], strlen.value, entry + strlen.size,
+             &data[rstack[i]] - entry - strlen.value);
+    }
+  }
   printf("\n");
+  r_pop();
 }
 
 static void inspect_stack(uint8_t *instr_p, uint8_t *instr_code) {
@@ -476,23 +503,6 @@ static cell to_interpreter(cell entry) {
   entry = align(entry, instruction *);
   return entry / sizeof(instruction *);
 }
-
-#ifdef TRACE
-static uint8_t *find_by_addr(uint8_t *interpreter_addr) {
-  cell entry = latest;
-  while (entry != 0) {
-    cell start = entry;
-    entry += sizeof(dict_flags);
-    value_size next_offset = leb128_decode(&data[entry]);
-    entry += next_offset.size;
-    if (&data[to_interpreter(start)] == interpreter_addr) {
-      return &data[entry];
-    }
-    entry = start + next_offset.value;
-  }
-  return 0;
-}
-#endif
 
 static void execute(uint8_t *instr_p, uint8_t *old_instr_code) {
   cell execution_token = pop();
@@ -1066,13 +1076,24 @@ int main(int argc, char *argv[]) {
   hexdump(data, data_p);
 
   for (int i = 1; i < argc; i++) {
-    input_source = fopen(argv[i], "r");
-    if (!input_source) {
-      printf("Failed to open file \"%s\"\n", argv[i]);
-      exit(1);
+    if (argv[i][0] == '-') {
+      switch (argv[i][1]) {
+      case 'b':
+        print_backtrace = false;
+        break;
+      default:
+        printf("Ignoring flag %s", argv[i]);
+        break;
+      }
+    } else {
+      input_source = fopen(argv[i], "r");
+      if (!input_source) {
+        printf("Failed to open file \"%s\"\n", argv[i]);
+        exit(1);
+      }
+      next(&data[start]);
+      fclose(input_source);
     }
-    next(&data[start]);
-    fclose(input_source);
   }
 
   input_source = stdin;
