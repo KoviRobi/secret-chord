@@ -43,6 +43,7 @@ char *read_line(FILE *input_source, char *prompt) {
           input_buffer[read - i - 1] == '\n' ||
           input_buffer[read - i - 1] == '\t' ||
           input_buffer[read - i - 1] == ' ') {
+        input_buffer[read - i - 1] = '\0';
         fseek(input_source, -i, SEEK_CUR);
         return input_buffer;
       }

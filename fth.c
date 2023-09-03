@@ -45,8 +45,22 @@ alignas(max_align_t) uint8_t data[4096] = {0xEF, 0xCD, 0xAB, 0x89};
 #define align(var, alignment)                                                  \
   ((var) + (alignof(alignment) - 1)) & ~(alignof(alignment) - 1)
 
-#define POP(STACK, STACK_P) (STACK)[--(STACK_P)]
-#define PUSH(STACK, STACK_P, VALUE) (STACK)[(STACK_P)++] = (VALUE)
+#define POP(STACK, STACK_P)                                                    \
+  {                                                                            \
+    if ((STACK_P) == 0) {                                                      \
+      printf("%s underflow!\n", #STACK);                                       \
+      exit(1);                                                                 \
+    }                                                                          \
+    return (STACK)[--(STACK_P)];                                               \
+  }
+#define PUSH(STACK, STACK_P, VALUE)                                            \
+  {                                                                            \
+    if ((STACK_P) >= (sizeof((STACK)) / sizeof((STACK)[0])) - 1) {             \
+      printf("%s overflow!\n", #STACK);                                        \
+      exit(2);                                                                 \
+    }                                                                          \
+    (STACK)[(STACK_P)++] = (VALUE);                                            \
+  }
 
 #define MIN(a, b)                                                              \
   ({                                                                           \
@@ -61,10 +75,10 @@ alignas(max_align_t) uint8_t data[4096] = {0xEF, 0xCD, 0xAB, 0x89};
     _a < _b ? _b : _a;                                                         \
   })
 
-static cell pop(void) { return POP(stack, stack_p); }
+static cell pop(void) { POP(stack, stack_p); }
 static void push(cell value) { PUSH(stack, stack_p, value); }
 
-static cell r_pop(void) { return POP(rstack, ret_p); }
+static cell r_pop(void) { POP(rstack, ret_p); }
 static void r_push(cell value) { PUSH(rstack, ret_p, value); }
 
 #ifdef TRACE
@@ -541,6 +555,9 @@ static void find(uint8_t *instr_p, uint8_t *instr_code) {
 
 static void compile_comma(uint8_t *instr_p, uint8_t *instr_code) {
   cell execution_token = pop();
+  if (data_p >= sizeof(data) / sizeof(data[0]) - 1) {
+    printf("heap overflow!\n");
+  }
   data_p += uleb128_encode(to_interpreter(execution_token), &data[data_p]);
   next(instr_p);
 }
