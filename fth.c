@@ -475,7 +475,7 @@ static bool is_separator(char n) {
   return n == ' ' || n == '\t' || n == '\r' || n == '\n';
 }
 
-static void refill_if_needed(uint8_t *instr_p, uint8_t *instr_code) {
+static bool refill_if_needed() {
   if (input_index >= input_size) {
     char *input = read_line(input_source, "> ");
     if (input != NULL)
@@ -484,26 +484,36 @@ static void refill_if_needed(uint8_t *instr_p, uint8_t *instr_code) {
       input_size = 0;
     input_buffer = (cell)(input - (char *)data);
     input_index = 0;
-    push(BOOL(input != NULL));
-    next(instr_p);
-  } else {
-    push(FORTH_TRUE);
-    next(instr_p);
+    return input != NULL;
   }
+  return true;
+}
+
+static void forth_refill_if_needed(uint8_t *instr_p, uint8_t *instr_code) {
+  push(BOOL(refill_if_needed()));
+  next(instr_p);
 }
 
 static void word(uint8_t *instr_p, uint8_t *instr_code) {
-  while (input_index < input_size &&
-         is_separator(data[input_buffer + input_index]))
-    input_index++;
-  cell start = input_index;
-  while (input_index < input_size &&
-         !is_separator(data[input_buffer + input_index])) {
-    input_index++;
+  while (refill_if_needed()) {
+    while (input_index < input_size &&
+           is_separator(data[input_buffer + input_index]))
+      input_index++;
+
+    if (input_index >= input_size)
+      continue;
+
+    cell start = input_index;
+    while (input_index < input_size &&
+           !is_separator(data[input_buffer + input_index])) {
+      input_index++;
+    }
+
+    push((cell)(input_buffer + start));
+    push(input_index - start);
+    next(instr_p);
+    return;
   }
-  push((cell)(input_buffer + start));
-  push(input_index - start);
-  next(instr_p);
 }
 
 static cell to_interpreter(cell entry) {
@@ -900,7 +910,7 @@ static cell init_dict(void) {
   add_native("BYE", &exit_and_print);
   add_native(".S", &inspect_stack);
 
-  add_native("?REFILL", &refill_if_needed);
+  add_native("?REFILL", &forth_refill_if_needed);
   add_native("WORD", &word);
   add_native("FIND", &find);
   add_native("EXECUTE", &execute);
@@ -931,62 +941,57 @@ static cell init_dict(void) {
 
   CREATE("INTERPRET", 0);
   ENTER;
-  find_and_compile("?REFILL");
-  IF(has_input, 1);
-  {
-    find_and_compile("WORD");
-    find_and_compile("FIND");
-    find_and_compile("DUP");
+  find_and_compile("WORD");
+  find_and_compile("FIND");
+  find_and_compile("DUP");
 
-    IF(found, 1);
-    {
-      find_and_compile("1+");
-      find_and_compile("COMPILING");
-      find_and_compile("@");
-      find_and_compile("0=");
-      find_and_compile("OR");
-      IF(immediate_or_interpreting, 1);
-      find_and_compile("EXECUTE");
-      ELSE(immediate_or_interpreting, 1);
-      find_and_compile("COMPILE,");
-      THEN(immediate_or_interpreting);
-      find_and_compile("(;)");
-    }
-    ELSE(found, 1);
-    {
-      find_and_compile("DROP");
-      find_and_compile("PARSE-NUMBER");
-      IF(number, 1);
-      {
-        find_and_compile("COMPILING");
-        find_and_compile("@");
-        IF(compiling, 1);
-        find_and_compile("LITERAL");
-        THEN(compiling);
-        find_and_compile("(;)");
-      }
-      THEN(number);
-    }
-    THEN(found);
-    find_and_compile("DUP");
-    IF(nonempty, 1);
-    {
-      compile_string_literal("\"");
-      find_and_compile("TYPE");
-      find_and_compile("TYPE");
-      compile_string_literal("\" is not a number or word\n");
-      find_and_compile("TYPE");
-    }
-    ELSE(nonempty, 1);
-    {
-      find_and_compile("DROP");
-      find_and_compile("DROP");
-    }
-    THEN(nonempty);
+  IF(found, 1);
+  {
+    find_and_compile("1+");
+    find_and_compile("COMPILING");
+    find_and_compile("@");
+    find_and_compile("0=");
+    find_and_compile("OR");
+    IF(immediate_or_interpreting, 1);
+    find_and_compile("EXECUTE");
+    ELSE(immediate_or_interpreting, 1);
+    find_and_compile("COMPILE,");
+    THEN(immediate_or_interpreting);
     find_and_compile("(;)");
   }
-  THEN(has_input);
-  find_and_compile("BYE");
+  ELSE(found, 1);
+  {
+    find_and_compile("DROP");
+    find_and_compile("PARSE-NUMBER");
+    IF(number, 1);
+    {
+      find_and_compile("COMPILING");
+      find_and_compile("@");
+      IF(compiling, 1);
+      find_and_compile("LITERAL");
+      THEN(compiling);
+      find_and_compile("(;)");
+    }
+    THEN(number);
+  }
+  THEN(found);
+  find_and_compile("DUP");
+  IF(nonempty, 1);
+  {
+    compile_string_literal("\"");
+    find_and_compile("TYPE");
+    find_and_compile("TYPE");
+    compile_string_literal("\" is not a number or word\n");
+    find_and_compile("TYPE");
+    find_and_compile("BYE");
+  }
+  ELSE(nonempty, 1);
+  {
+    find_and_compile("DROP");
+    find_and_compile("DROP");
+  }
+  THEN(nonempty);
+  find_and_compile("(;)");
 
   add_native("NEW-ENTRY", &new_entry);
   add_native("INTERPRETER,", &compile_interpreter);
