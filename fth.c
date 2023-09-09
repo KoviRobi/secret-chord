@@ -528,6 +528,12 @@ static cell to_interpreter(cell entry) {
   return entry / sizeof(instruction *);
 }
 
+static void forth_to_interpreter(uint8_t *instr_p, uint8_t *instr_code) {
+  cell execution_token = pop();
+  push(to_interpreter(execution_token));
+  next(instr_p);
+}
+
 static void see(uint8_t *instr_p, uint8_t *_instr_code) {
   cell size = pop();
   cell start = pop();
@@ -1017,6 +1023,7 @@ static cell init_dict(void) {
 
   add_native("NEW-ENTRY", &new_entry);
   add_native("INTERPRETER,", &compile_interpreter);
+  add_native(">INTERPRETER", &forth_to_interpreter);
   add_native("INTERPRETER>CODE", &interpreter_to_code);
   add_native("IMMEDIATE@", &immediate_fetch);
   add_native("IMMEDIATE!", &immediate_store);
