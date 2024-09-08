@@ -1,0 +1,20 @@
+/1-introduction-base
+/1-introduction
+/2-going-forth-base
+/2-going-forth
+/discuss
+/reviews
+/archives
+
+# Ignore editor files
+*~
+\#*\#
+
+# Compiler outputs
+a.out
+*.o
+*.elf
+
+# Patch/merge conflict files
+*.orig
+*.rej
