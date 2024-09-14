@@ -5,3 +5,5 @@
 {"timestamp":"1725476451","author":"🐶","location":{"commit":"6ef07cd52802635f87acc1286be07ccb2d0e6d92","path":".editorconfig","range":{"startLine":0}},"description":"This is the file called `.editorconfig`. The line starting with `@@` is not part of the file, it is called the \"diff hunk header\". In this case it just says we are adding lines 1 to 13 to a new file:\n- the `-0,0` means the file previously had no content;\n- the `+1,13` means the hunk spans from line 1 to 13 lines below (including line 1)."}
 
 {"timestamp":"1726328537","author":"🐶","location":{"commit":"6ef07cd52802635f87acc1286be07ccb2d0e6d92","path":".editorconfig","range":{"startLine":1}},"description":"This is the first line of the newly added file. Note, that the '+' is not part of the line, it is there to indicate that this is a newly added line."}
+
+{"timestamp":"1726328640","author":"🐶","location":{"commit":"6ef07cd52802635f87acc1286be07ccb2d0e6d92","path":".gitignore","range":{"startLine":0}},"description":"Oh by the way, files starting with '.' are hidden files on Linux, by convention. They are not a file extension."}
