@@ -31,3 +31,5 @@
 {"timestamp":"1726347648","author":"🐶","parent":"9ba7345e2ebf4d06d63904d7070d8993181c20b1","location":{"commit":"b41a5a2f2ebe0331704b93eb85adc4a46f9c2dff","range":{"startLine":0}},"description":"It stands for print formatted -- we will explore this in a little more detail\nnext.\n"}
 
 {"timestamp":"1726350783","author":"🐱","location":{"commit":"b41a5a2f2ebe0331704b93eb85adc4a46f9c2dff","path":"hello.c","range":{"startLine":6}},"description":"Didn't you say `main` returns an integer? Where is it?\n"}
+
+{"timestamp":"1726350860","author":"🐶","parent":"4f069125dea437b9b7812b5f31b22473bc93d584","location":{"commit":"b41a5a2f2ebe0331704b93eb85adc4a46f9c2dff","range":{"startLine":0}},"description":"The `main` function is special, if it doesn't explicitly return an integer, it\nwill implicitly return `0` indicating no error occurred. This is purely\nhistorical/convenience. But otherwise yes, all functions should return the\nvalues they promise to return.\n"}
