@@ -1,0 +1,3 @@
+[submodule "git-appraise"]
+	path = git-appraise
+	url = ../git-appraise

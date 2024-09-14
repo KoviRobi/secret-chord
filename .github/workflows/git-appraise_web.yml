@@ -41,12 +41,12 @@ jobs:
     steps:
       - name: Install go tools
         uses: actions/setup-go@v5
-      - name: Installing git-appraise fork
-        run: go install github.com/KoviRobi/git-appraise/git-appraise@rob
       - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
+      - name: Installing git-appraise fork
+        run: cd git-appraise; go install ./git-appraise/git-appraise.go
       - name: Fetch reviews
         run: |
           git fetch
