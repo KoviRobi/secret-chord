@@ -25,3 +25,5 @@
 {"timestamp":"1726347357","author":"🐱","parent":"fe780babae2c320b1b6cdd6abb32e345108e5749","location":{"commit":"b41a5a2f2ebe0331704b93eb85adc4a46f9c2dff","range":{"startLine":0}},"description":"What does `\\n` mean?\n"}
 
 {"timestamp":"1726347579","author":"🐶","parent":"6f497f79dab12ccb812a0a804246fc196426cdad","location":{"commit":"b41a5a2f2ebe0331704b93eb85adc4a46f9c2dff","range":{"startLine":0}},"description":"It means a new line, as part of the string. The backslash `\\` starts an escape\nsequence, and the `n` means new line. Some other escape sequences are `\\\"` to\nput a double quote as part of the string, and `\\\\` to put a single backslash as\npart of the string.\n"}
+
+{"timestamp":"1726347587","author":"🐱","parent":"fe780babae2c320b1b6cdd6abb32e345108e5749","location":{"commit":"b41a5a2f2ebe0331704b93eb85adc4a46f9c2dff","range":{"startLine":0}},"description":"Why is it called `printf` and not just `print`?\n"}
