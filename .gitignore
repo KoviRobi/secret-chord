@@ -1,0 +1,8 @@
+# Ignore editor files
+*~
+\#*\#
+
+# Compiler outputs
+a.out
+*.o
+*.elf
