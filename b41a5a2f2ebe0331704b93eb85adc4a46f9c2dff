@@ -5,3 +5,5 @@
 {"timestamp":"1726345474","author":"🐶","location":{"commit":"b41a5a2f2ebe0331704b93eb85adc4a46f9c2dff","path":"hello.c","range":{"startLine":1}},"description":"This includes functionality for input/output -- `stdio.h` means standard\nlibrary, input/output header.\n"}
 
 {"timestamp":"1726345549","author":"🐱","parent":"e40aac5e5fb61dc80318dcd729340f082fe1e730","location":{"commit":"b41a5a2f2ebe0331704b93eb85adc4a46f9c2dff","range":{"startLine":0}},"description":"What's a header?\n"}
+
+{"timestamp":"1726345672","author":"🐶","parent":"9e22b8ad9e679e2834726f098a4cd6d417627467","location":{"commit":"b41a5a2f2ebe0331704b93eb85adc4a46f9c2dff","range":{"startLine":0}},"description":"A header is just a text file containing details about functions, data-types and\nglobal variables. In this case it contains details about the `printf` function\nused below (as well as some other stuff).\n"}
