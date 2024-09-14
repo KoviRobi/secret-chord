@@ -15,3 +15,5 @@
 {"timestamp":"1726345850","author":"🐶","parent":"ec46e4b3923f5ec19b8a8b14f88e0c58ee368bc4","location":{"commit":"b41a5a2f2ebe0331704b93eb85adc4a46f9c2dff","range":{"startLine":0}},"description":"We will explore pointers as we go through this book. But you don't have to\nworry about them here, as we do not end up using the `argv` argument.\n"}
 
 {"timestamp":"1726347040","author":"🐶","location":{"commit":"b41a5a2f2ebe0331704b93eb85adc4a46f9c2dff","path":"hello.c","range":{"startLine":4}},"description":"In C, the characters `//` start a comment until the end of the line. Comments\nare for other programmers, and the computer ignores them.\n"}
+
+{"timestamp":"1726347074","author":"🐱","parent":"8b14b5805c96351e0eb013a6f53dd09eacdab0d8","location":{"commit":"b41a5a2f2ebe0331704b93eb85adc4a46f9c2dff","range":{"startLine":0}},"description":"But so are comments like this one, right?\n"}
