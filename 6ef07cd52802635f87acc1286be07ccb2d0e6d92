@@ -7,3 +7,5 @@
 {"timestamp":"1726328537","author":"🐶","location":{"commit":"6ef07cd52802635f87acc1286be07ccb2d0e6d92","path":".editorconfig","range":{"startLine":1}},"description":"This is the first line of the newly added file. Note, that the '+' is not part of the line, it is there to indicate that this is a newly added line."}
 
 {"timestamp":"1726328640","author":"🐶","location":{"commit":"6ef07cd52802635f87acc1286be07ccb2d0e6d92","path":".gitignore","range":{"startLine":0}},"description":"Oh by the way, files starting with '.' are hidden files on Linux, by convention. They are not a file extension."}
+
+{"timestamp":"1726328720","author":"🐶","parent":"32a96929453177d26671b47e1fce77d979df0caa","location":{"commit":"6ef07cd52802635f87acc1286be07ccb2d0e6d92","range":{"startLine":0}},"description":"This file just tells git what files we don't want to add to the repository (book in this case). So that they don't show up as files untracked by git, but could be added, say when compared to a new file we do want to add."}
