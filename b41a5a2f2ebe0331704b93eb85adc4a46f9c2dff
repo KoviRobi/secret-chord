@@ -21,3 +21,5 @@
 {"timestamp":"1726347180","author":"🐶","parent":"7f71cd6bd7b1bf95feff614d70004fa75f478101","location":{"commit":"b41a5a2f2ebe0331704b93eb85adc4a46f9c2dff","range":{"startLine":0}},"description":"Yes, but these comments are not part of the file, only the review/book. Whereas\ncomments like the one above are part of the file. You can also create a comment\nusing the characters `/*` which are until the characters `*/`, not the end of\nthe line.\n"}
 
 {"timestamp":"1726347322","author":"🐶","location":{"commit":"b41a5a2f2ebe0331704b93eb85adc4a46f9c2dff","path":"hello.c","range":{"startLine":5}},"description":"Here we call the function `printf` to print `Helo, world` onto the screen. You\nuse parentheses for the function call, and the double quotes (`\"`) to create a\nstring.\n"}
+
+{"timestamp":"1726347357","author":"🐱","parent":"fe780babae2c320b1b6cdd6abb32e345108e5749","location":{"commit":"b41a5a2f2ebe0331704b93eb85adc4a46f9c2dff","range":{"startLine":0}},"description":"What does `\\n` mean?\n"}
