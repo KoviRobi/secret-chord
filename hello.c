@@ -1,6 +1,7 @@
 #include <stdio.h>
 
 int main(int argc, char **argv) {
-	// The classic C introduction program
-	printf("Hello, world\n");
+	for (int index = 0; index < argc; index++) {
+		printf("Argument %d is %s\n", index, argv[index]);
+	}
 }
