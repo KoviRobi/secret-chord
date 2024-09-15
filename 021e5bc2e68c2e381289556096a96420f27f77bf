@@ -3,3 +3,5 @@
 {"timestamp":"1726355870","author":"🐱","parent":"d459d6da801ae82414b8e39f6ce8a0332f91cba2","location":{"commit":"021e5bc2e68c2e381289556096a96420f27f77bf","range":{"startLine":0}},"description":"And presumably the minus below instead of the space or plus means that line is\nremoved?\n"}
 
 {"timestamp":"1726356039","author":"🐶","parent":"d0665b3e556fbbad081c84e1be7a7277f5f0cbe0","location":{"commit":"021e5bc2e68c2e381289556096a96420f27f77bf","range":{"startLine":0}},"description":"Correct, and note this file now has two line numbers, the one on the left hand\nside is the old line numbers, and the one on the right hand side is the new\nline numbers.\n\nAlso, the hunk header is now different too. It means that the hunk has 6 lines,\nstarting from line 1 of the old file, and 7 lines starting from line 1 of the\nnew file. This all lines up with the line numbers.\n"}
+
+{"timestamp":"1726358425","author":"🐶","location":{"commit":"021e5bc2e68c2e381289556096a96420f27f77bf","path":"hello.c","range":{"startLine":4}},"description":"This is a for loop, it loops with `index` from `0` to `argc - 1`.\n"}
