@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdio.h>
 
 #define ASIZE(x) (sizeof((x)) / sizeof((x)[0]))
@@ -10,18 +11,15 @@ unsigned stack_p;
 void push(int value) { stack[stack_p++] = value; }
 int pop(void) { return stack[--stack_p]; }
 
-instruction put_0;
-instruction increment;
+instruction lit;
 
 instruction *prog[] = {
-	&put_0,
-	&increment,
+	&lit,
+	(instruction *)2,
 };
 int pc = 0;
 
-void put_0(void) { push(0); }
-
-void increment(void) { push(pop() + 1); }
+void lit(void) { push((int)(intptr_t)prog[++pc]); }
 
 int main(int argc, char *argv[]) {
 	for (pc = 0; pc < ASIZE(prog); pc++) {
