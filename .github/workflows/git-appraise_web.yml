@@ -49,17 +49,10 @@ jobs:
         run: cd git-appraise; go install ./git-appraise/git-appraise.go
       - name: Fetch reviews
         run: |
-          git fetch
+          git checkout -d
+          git fetch origin +refs/heads/*:refs/heads/*
+          git checkout reviewforth
           git-appraise pull
-
-          git for-each-ref --shell --format="ref=%(refname)" refs/remotes/origin/ | \
-          while read entry; do
-            eval "$entry"
-            branch=${ref#refs/remotes/origin/}
-            remote=${ref#refs/remotes/}
-            git branch ${branch} ${remote} || true
-          done
-
       - name: Build pages
         run: |
           git-appraise web -output ./public
