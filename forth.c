@@ -3,7 +3,7 @@
 
 #define ASIZE(x) (sizeof((x)) / sizeof((x)[0]))
 
-typedef void instruction(void);
+typedef void instruction(void **pc);
 
 int stack[100];
 unsigned stack_p;
@@ -12,19 +12,29 @@ void push(int value) { stack[stack_p++] = value; }
 int pop(void) { return stack[--stack_p]; }
 
 instruction lit;
+instruction stop;
 
 instruction *prog[] = {
 	&lit,
-	(instruction *)2,
+	(instruction *)3,
+	&stop,
 };
-int pc = 0;
 
-void lit(void) { push((int)(intptr_t)prog[++pc]); }
+void next(void **pc) {
+	instruction *next_instr = *pc;
+	next_instr(pc + 1);
+}
+
+void lit(void **pc) {
+	push(*(int *)pc++);
+	next(pc);
+}
+
+void stop(void **pc) {}
 
 int main(int argc, char *argv[]) {
-	for (pc = 0; pc < ASIZE(prog); pc++) {
-		prog[pc]();
-	}
+	int start = 0;
+	prog[start]((void **)&prog[start + 1]);
 
 	// Print stack after exit
 	printf("<%u>", stack_p);
