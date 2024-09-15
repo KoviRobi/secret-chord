@@ -8,8 +8,10 @@ on:
       - reviewforth
       - 1-introduction
       - 1-introduction-base
-      - 2-going-forth
-      - 2-going-forth-base
+      - 2-numbers-in-detail
+      - 2-numbers-in-detail-base
+      - 3-going-forth
+      - 3-going-forth-base
       - refs/
       - refs/notes/devtools/discuss
       - refs/notes/devtools/reviews

@@ -19,12 +19,14 @@ git config --local --add notes.rewriteRef refs/notes/devtools/reviews
 git config --local --add notes.rewriteRef refs/notes/devtools/discuss
 
 worktrees=(
-	1-introduction-base
-	1-introduction
-	2-going-forth-base
-	2-going-forth
+  1-introduction-base
+  1-introduction
+  2-numbers-in-detail-base
+  2-numbers-in-detail
+  3-going-forth-base
+  3-going-forth
 )
 
 for worktree in "${worktrees[@]}"; do
-	git worktree add "$worktree" "$worktree"
+  git worktree add "$worktree" "$worktree"
 done
