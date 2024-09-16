@@ -1,0 +1,17 @@
+#!/bin/sh
+
+reviews=refs/notes/devtools/reviews
+discuss=refs/notes/devtools/discuss
+
+while read -r old new; do
+  old_reviews=$(git rev-parse "$reviews")
+  old_discuss=$(git rev-parse "$discuss")
+  echo "Migrating reviews from \"$old\" to \"$new\" (old reviews tree \"$old_reviews\")"
+  git notes "--ref=$reviews" copy -f "$old" "$new"
+  git notes "--ref=$reviews" merge "$old_reviews"
+  git notes "--ref=$reviews" remove "$old"
+  echo "Migrating comments from \"$old\" to \"$new\" (old comments tree \"$old_comments\")"
+  git notes "--ref=$discuss" copy -f "$old" "$new"
+  git notes "--ref=$discuss" merge "$old_discuss"
+  git notes "--ref=$discuss" remove "$old"
+done

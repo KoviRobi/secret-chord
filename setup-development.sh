@@ -15,8 +15,8 @@ fi
 git config --local author.email "🐶"
 git config --local committer.email "🐶"
 git config --local user.email "🐶"
-git config --local --add notes.rewriteRef refs/notes/devtools/reviews
-git config --local --add notes.rewriteRef refs/notes/devtools/discuss
+
+cp post-rewrite "$(git rev-parse --git-dir)/hooks/"
 
 worktrees=(
   1-introduction-base
