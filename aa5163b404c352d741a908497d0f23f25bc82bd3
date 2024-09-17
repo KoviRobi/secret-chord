@@ -1,3 +1,5 @@
 {"timestamp":"1726534084","author":"🐶","location":{"commit":"@","path":"hexdump.h","range":{"startLine":0}},"description":"First we include some standard definitions, specifically the\n[`size_t`](https://en.cppreference.com/w/c/types) which is a numeric\ntype that can represent any size.\n"}
 
 {"timestamp":"1726535557","author":"🐶","location":{"commit":"@","path":"hexdump.h","range":{"startLine":3}},"description":"This is still just a comment, because anything after the two slashes\n`//` is a comment, including the third slash, but some tools treat it\nspecially (for example [doxygen](https://doxygen.nl/), and some text\neditors/language servers show these types of comment when hovering\nover the function name, even where it is used) so it's a good habit to\ndocument functions with a brief description like this.\n"}
+
+{"timestamp":"1726535692","author":"🐶","location":{"commit":"@","path":"hexdump.h","range":{"startLine":4}},"description":"And this is our first function prototype -- the prototype in this case\njust means describing the function without implementing it: what its\nname is, what types are the arguments, and what type it returns.\n"}
