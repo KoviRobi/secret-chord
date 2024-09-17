@@ -1,0 +1,1 @@
+{"timestamp":"1726534084","author":"🐶","location":{"commit":"@","path":"hexdump.h","range":{"startLine":0}},"description":"First we include some standard definitions, specifically the\n[`size_t`](https://en.cppreference.com/w/c/types) which is a numeric\ntype that can represent any size.\n"}
