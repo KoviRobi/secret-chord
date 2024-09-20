@@ -25,3 +25,5 @@
 {"timestamp":"1726792310","author":"🐱","location":{"commit":"018cd6683e50","path":"hexdump.c","range":{"startLine":26}},"description":"Ah finally, some examples for me to play around with."}
 
 {"timestamp":"1726792679","author":"🐶","parent":"1d24ea55a9516c175dc83d9238e45ee86f2386d7","location":{"commit":"018cd6683e50","range":{"startLine":0}},"description":"Please do play around. If you want some things to look at, you can\nlook at the order of bytes, figure out how negative values work, and\nfigure out a bit about how characters are represented.\n"}
+
+{"timestamp":"1726792809","author":"🐱","parent":"ce9285d23bce1c8ac78987af82bcef0879516376","location":{"commit":"018cd6683e50","range":{"startLine":0}},"description":"But I'll also go for a coffee break and have some biscuits while I'm\ndigesting all of this information. I have decaf to not over\ncaffeinate.\n"}
